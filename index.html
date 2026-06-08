@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anki Reader</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f5;min-height:100vh;color:#1a1a1a}
+.wrap{max-width:1240px;margin:0 auto;padding:1.5rem 2rem}
+
+/* Upload */
+.upload-section{background:#fff;border:1.5px dashed #ddd;border-radius:16px;padding:3rem 2rem;text-align:center;margin-bottom:20px}
+.upload-title{font-size:22px;font-weight:600;color:#1a1a1a;margin-bottom:8px}
+.upload-sub{font-size:15px;color:#888;margin-bottom:18px;line-height:1.6}
+input[type=file]{font-size:15px;color:#555;cursor:pointer}
+pre.fmt{font-size:13px;text-align:left;background:#f8f8f8;border:1px solid #e8e8e8;border-radius:10px;padding:14px 16px;margin-top:16px;overflow-x:auto;color:#666;white-space:pre;line-height:1.7}
+
+/* Deck */
+.storage-bar{display:flex;align-items:center;gap:8px;font-size:13px;color:#999;margin-bottom:12px}
+.storage-dot{width:8px;height:8px;border-radius:50%;background:#3B6D11;flex-shrink:0;transition:background 0.2s}
+.storage-dot.unsaved{background:#EF9F27}
+.clear-btn{margin-left:auto;font-size:13px;padding:4px 12px;border-radius:8px;border:1px solid #e0e0e0;background:transparent;color:#aaa;cursor:pointer}
+.clear-btn:hover{color:#666;border-color:#bbb}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.stat{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:14px 8px;text-align:center}
+.stat-n{font-size:26px;font-weight:600}
+.stat-l{font-size:12px;color:#aaa;margin-top:4px}
+.n-easy{color:#3B6D11}.n-hard{color:#854F0B}.n-again{color:#A32D2D}.n-rem{color:#534AB7}
+
+/* Filters */
+.filters{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.filter-btn{font-size:13px;padding:6px 14px;border-radius:999px;cursor:pointer;border:1px solid #e0e0e0;background:#fff;color:#666;transition:all 0.1s}
+.filter-btn.active{border-color:#AFA9EC;background:#EEEDFE;color:#3C3489}
+.prog{margin-left:auto;font-size:13px;color:#bbb}
+
+/* Card */
+.card{background:#fff;border:1px solid #e8e8e8;border-radius:18px;padding:2rem;min-height:340px;cursor:pointer;display:flex;flex-direction:column;gap:12px;margin-bottom:14px;box-shadow:0 2px 10px rgba(0,0,0,.04);transition:border-color 0.15s}
+.card:hover{border-color:#c8c8c8}
+.card-meta{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.card-session{font-size:12px;color:#aaa;text-transform:uppercase;letter-spacing:.04em;line-height:1.4;flex:1}
+.card-id{font-size:12px;color:#ccc;white-space:nowrap}
+.badges{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.badge{font-size:12px;padding:3px 10px;border-radius:999px;font-weight:500;white-space:nowrap}
+.badge-axiom{background:#EEEDFE;color:#3C3489;border:1px solid #AFA9EC}
+.badge-dep{background:#f5f5f5;color:#888;border:1px solid #e8e8e8;font-size:11px}
+.card-ref{font-size:12px;color:#bbb;line-height:1.4;margin-top:-4px}
+.card-q{font-size:20px;font-weight:500;color:#1a1a1a;line-height:1.55;flex:1}
+.card-body{font-size:17px;color:#1a1a1a;line-height:1.75;flex:1;overflow-y:auto;max-height:320px}
+.hint{font-size:13px;color:#ccc;margin-top:auto;padding-top:8px}
+.divider{border:none;border-top:1px solid #f0f0f0;margin:12px 0}
+
+/* Rating pill on session label */
+.rpill{font-size:11px;padding:1px 7px;border-radius:999px;margin-left:6px;vertical-align:middle}
+.rpill-easy{background:#EAF3DE;color:#3B6D11}
+.rpill-hard{background:#FAEEDA;color:#854F0B}
+.rpill-again{background:#FCEBEB;color:#A32D2D}
+
+/* Nav */
+.nav{display:flex;gap:8px;justify-content:center;margin-bottom:8px}
+.nav button,.rate-row button{font-size:15px;padding:10px 22px;border-radius:10px;border:1px solid #e0e0e0;background:#fff;color:#333;cursor:pointer;transition:all 0.1s}
+.nav button:hover:not(:disabled),.rate-row button:hover{filter:brightness(0.96)}
+.nav button:disabled{opacity:0.3;cursor:not-allowed}
+.btn-flip{border-color:#AFA9EC !important;background:#EEEDFE !important;color:#3C3489 !important}
+.rate-row{display:flex;gap:8px;justify-content:center;margin-bottom:14px}
+.btn-again{border-color:#F09595 !important;color:#A32D2D !important}
+.btn-hard{border-color:#EF9F27 !important;color:#854F0B !important}
+.btn-easy{border-color:#97C459 !important;color:#3B6D11 !important}
+
+/* Done */
+.done{background:#fff;border:1px solid #e8e8e8;border-radius:18px;padding:3.5rem 2rem;text-align:center}
+.done-emoji{font-size:40px;margin-bottom:12px}
+.done h2{font-size:22px;font-weight:600;margin-bottom:8px}
+.done p{font-size:16px;color:#888;margin-bottom:22px}
+.btn-restart{font-size:16px;padding:12px 28px;border-radius:10px;border:1px solid #AFA9EC;background:#EEEDFE;color:#3C3489;cursor:pointer}
+.btn-restart:hover{filter:brightness(0.96)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="upload-section">
+    <div class="upload-section">
+      <div class="upload-title">Anki Reader</div>
+      <div class="upload-sub">Cargá un archivo .md con tus cards.<br>Los ratings se guardan entre sesiones.</div>
+      <input type="file" id="md-file" accept=".md,.txt">
+      <pre class="fmt">## Sesión 4 — Nombre del tema
+
+### [axioma] Definición formal de X
+id: 1
+ref: Libro Y, Cap. 3, p. 42
+¿Cuál es la definición de X?
+---
+X es el conjunto de todos los...
+
+### Teorema derivado
+id: 2
+ref: Libro Y, Cap. 3, p. 45
+depends: 1
+¿Qué se puede derivar de X?
+---
+A partir de la definición, se puede ver que...</pre>
+    </div>
+  </div>
+
+  <div id="deck-section" style="display:none">
+    <div class="storage-bar">
+      <span class="storage-dot" id="storage-dot"></span>
+      <span id="storage-label">Cargando...</span>
+      <button class="clear-btn" id="clear-btn">Limpiar progreso</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="stat-n n-easy" id="s-easy">0</div><div class="stat-l">✓ Fácil</div></div>
+      <div class="stat"><div class="stat-n n-hard" id="s-hard">0</div><div class="stat-l">~ Difícil</div></div>
+      <div class="stat"><div class="stat-n n-again" id="s-again">0</div><div class="stat-l">✗ Repetir</div></div>
+      <div class="stat"><div class="stat-n n-rem" id="s-rem">0</div><div class="stat-l">Restantes</div></div>
+    </div>
+
+    <div class="filters" id="filters"></div>
+    <div id="main"></div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+<script>
+let CARDS = [];
+let deck = [];
+let idx = 0;
+let flipped = false;
+let filter = 'all';
+let ratings = {easy:0, hard:0, again:0};
+let done = false;
+let cardRatings = {};
+let deckKey = '';
+let answeredIds = new Set();
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// ── Parser ────────────────────────────────────────────────────────────────────
+
+function parseMD(text) {
+  // Detect old format: **Card N** `REF` style
+  if (/^\*\*Card /m.test(text)) return parseMDOld(text);
+  return parseMDNew(text);
+}
+
+// New format: ## Section / ### [axioma] Title / id: / ref: / depends: / q / --- / a
+function parseMDNew(text) {
+  const cards = [];
+  const lines = text.split('\n');
+  let currentSession = null;
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (line.startsWith('## ')) {
+      currentSession = line.slice(3).trim();
+      i++; continue;
+    }
+    if (line.startsWith('### ')) {
+      const title = line.slice(4).trim();
+      const isAxiom = /^\[axiom[ao]\]/i.test(title);
+      const sl = title.replace(/^\[axiom[ao]\]\s*/i, '').trim();
+      i++;
+      let id = null, ref = null, depends = [], qLines = [], aLines = [], inAnswer = false;
+      while (i < lines.length && !lines[i].startsWith('## ') && !lines[i].startsWith('### ')) {
+        const l = lines[i];
+        if (l.startsWith('id:'))      { id = l.slice(3).trim(); i++; continue; }
+        if (l.startsWith('ref:'))     { ref = l.slice(4).trim(); i++; continue; }
+        if (l.startsWith('depends:')) { depends = l.slice(8).split(',').map(s=>s.trim()).filter(Boolean); i++; continue; }
+        if (l.trim() === '---')       { inAnswer = true; i++; continue; }
+        if (inAnswer) aLines.push(l); else qLines.push(l);
+        i++;
+      }
+      const q = qLines.join('\n').trim();
+      const a = aLines.join('\n').trim();
+      if (q && a) {
+        cards.push({ id: id || String(cards.length + 1), session: currentSession, sl, q, a, axiom: isAxiom, depends, ref });
+      }
+      continue;
+    }
+    i++;
+  }
+  return cards;
+}
+
+// Old format: **Card N** `REF` / question lines / > answer lines / ---
+function parseMDOld(text) {
+  const cards = [];
+  const lines = text.split('\n');
+  let currentSession = null;
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (line.startsWith('## ')) { currentSession = line.slice(3).trim(); i++; continue; }
+    const cardMatch = line.match(/^\*\*Card\s+([^\*]+)\*\*(?:\s*`([^`]*)`)?/);
+    if (cardMatch) {
+      const id = cardMatch[1].trim();
+      const ref = (cardMatch[2] || '').trim();
+      i++;
+      const qLines = [], aLines = [];
+      while (i < lines.length) {
+        const l = lines[i];
+        if (/^\*\*Card /.test(l) || l.startsWith('## ')) break;
+        if (l.trim() === '---') { i++; break; }
+        if (l.startsWith('>')) aLines.push(l.length > 1 ? l.slice(2) : '');
+        else if (l.trim() !== '') qLines.push(l);
+        i++;
+      }
+      const q = qLines.join('\n').trim();
+      const a = aLines.join('\n').trim();
+      if (q && a) {
+        cards.push({ id, session: currentSession, sl: q.slice(0, 60), q, a, axiom: false, depends: [], ref });
+      }
+      continue;
+    }
+    i++;
+  }
+  return cards;
+}
+
+// ── KaTeX renderer ────────────────────────────────────────────────────────────
+
+function esc(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function renderMath(text) {
+  if (!text) return '';
+  let html = '', rest = text;
+  while (rest.length > 0) {
+    const b = rest.indexOf('$$');
+    const s = rest.indexOf('$');
+    const n = rest.indexOf('\n');
+    if (b !== -1 && (s === -1 || b <= s) && (n === -1 || b <= n)) {
+      if (b > 0) html += esc(rest.slice(0, b));
+      const end = rest.indexOf('$$', b + 2);
+      if (end === -1) { html += esc(rest); break; }
+      try { html += '<div style="overflow-x:auto;padding:4px 0">' + katex.renderToString(rest.slice(b+2,end).trim(), {displayMode:true,throwOnError:false}) + '</div>'; }
+      catch(e) { html += esc(rest.slice(b, end+2)); }
+      rest = rest.slice(end + 2);
+    } else if (s !== -1 && (n === -1 || s < n)) {
+      if (s > 0) html += esc(rest.slice(0, s));
+      const end = rest.indexOf('$', s + 1);
+      if (end === -1) { html += esc(rest); break; }
+      try { html += katex.renderToString(rest.slice(s+1,end).trim(), {displayMode:false,throwOnError:false}); }
+      catch(e) { html += esc(rest.slice(s, end+1)); }
+      rest = rest.slice(end + 1);
+    } else if (n !== -1) {
+      if (n > 0) html += esc(rest.slice(0, n));
+      html += '<br>';
+      rest = rest.slice(n + 1);
+    } else {
+      html += esc(rest); break;
+    }
+  }
+  return html;
+}
+
+// ── Persistence ───────────────────────────────────────────────────────────────
+
+function saveProgress() {
+  try {
+    localStorage.setItem(deckKey, JSON.stringify(cardRatings));
+    setStatus(true);
+  } catch(e) { setStatus(false, 'Error al guardar'); }
+}
+
+function loadProgress() {
+  try {
+    const raw = localStorage.getItem(deckKey);
+    if (raw) {
+      cardRatings = JSON.parse(raw);
+      const n = Object.keys(cardRatings).length;
+      setStatus(true, n > 0 ? `Progreso restaurado — ${n} cards calificadas` : 'Sesión nueva');
+    } else {
+      cardRatings = {};
+      setStatus(true, 'Sesión nueva');
+    }
+  } catch(e) { cardRatings = {}; setStatus(true, 'Sesión nueva'); }
+}
+
+function setStatus(saved, msg) {
+  const dot = document.getElementById('storage-dot');
+  const lbl = document.getElementById('storage-label');
+  if (!dot || !lbl) return;
+  dot.className = 'storage-dot' + (saved ? '' : ' unsaved');
+  lbl.textContent = msg || (saved ? 'Progreso guardado' : 'Sin guardar');
+}
+
+// ── Deck & render ─────────────────────────────────────────────────────────────
+
+function buildDeck(f) {
+  filter = f;
+  const filtered = f === 'all' ? [...CARDS] : CARDS.filter(c => c.session === f);
+  const axioms = filtered.filter(c => c.axiom);
+  const rest   = filtered.filter(c => !c.axiom);
+  // Shuffle axioms; if none defined (old format), shuffle everything
+  const ordered = axioms.length > 0 ? [...shuffle(axioms), ...rest] : shuffle([...filtered]);
+
+  // Rebuild session state from persisted ratings
+  ratings = {easy:0, hard:0, again:0};
+  answeredIds = new Set();
+  Object.entries(cardRatings).forEach(([id, r]) => {
+    if (r in ratings) ratings[r]++;
+    answeredIds.add(id);
+  });
+
+  // Place already-answered cards first so idx lands on the first unanswered card
+  const prevAnswered = ordered.filter(c => answeredIds.has(c.id));
+  const unanswered   = ordered.filter(c => !answeredIds.has(c.id));
+  deck = [...prevAnswered, ...unanswered];
+  idx = prevAnswered.length;
+  flipped = false; done = idx >= deck.length;
+  renderFilters();
+  renderStats();
+  renderCard();
+}
+
+function renderFilters() {
+  const sessions = [...new Set(CARDS.map(c => c.session))];
+  let html = `<button class="filter-btn${filter==='all'?' active':''}" onclick="buildDeck('all')">Todas (${CARDS.length})</button>`;
+  sessions.forEach(s => {
+    const count = CARDS.filter(c => c.session === s).length;
+    const label = s.match(/\d+/)?.[0] || s.slice(0, 10);
+    const esc_s = s.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    html += `<button class="filter-btn${filter===s?' active':''}" onclick="buildDeck('${esc_s}')">Ses. ${label} (${count})</button>`;
+  });
+  html += `<span class="prog" id="prog">${idx+1}/${deck.length}</span>`;
+  document.getElementById('filters').innerHTML = html;
+}
+
+function renderStats() {
+  document.getElementById('s-easy').textContent = ratings.easy;
+  document.getElementById('s-hard').textContent = ratings.hard;
+  document.getElementById('s-again').textContent = ratings.again;
+  document.getElementById('s-rem').textContent = Math.max(0, deck.length - idx);
+  const prog = document.getElementById('prog');
+  if (prog) prog.textContent = `${idx+1}/${deck.length}`;
+}
+
+function depLabel(id) {
+  const c = CARDS.find(c => c.id === id);
+  return c ? c.sl.slice(0, 32) : id;
+}
+
+function renderCard() {
+  const main = document.getElementById('main');
+  if (done) {
+    main.innerHTML = `<div class="done">
+      <div class="done-emoji">🎉</div>
+      <h2>¡Ronda completada!</h2>
+      <p>Fácil: ${ratings.easy} · Difícil: ${ratings.hard} · Repetir: ${ratings.again} de ${deck.length} cards</p>
+      <button class="btn-restart" onclick="buildDeck(filter)">⟳ Empezar de nuevo</button>
+    </div>`;
+    return;
+  }
+  const card = deck[idx];
+  if (!card) return;
+
+  const prev = cardRatings[card.id];
+  const rpill = prev ? `<span class="rpill rpill-${prev}">${prev==='easy'?'✓':prev==='hard'?'~':'✗'}</span>` : '';
+
+  let badgesHtml = '';
+  if (card.axiom) badgesHtml += `<span class="badge badge-axiom">axioma</span>`;
+  (card.depends || []).forEach(id => { badgesHtml += `<span class="badge badge-dep" title="depende de este axioma">↳ ${esc(depLabel(id))}</span>`; });
+
+  const refHtml = card.ref ? `<div class="card-ref">${esc(card.ref)}</div>` : '';
+
+  let bodyHtml;
+  if (!flipped) {
+    bodyHtml = `<div class="card-q">${renderMath(card.q)}</div><div class="hint">Tocá para ver la respuesta</div>`;
+  } else {
+    bodyHtml = `<div class="card-body">${renderMath(card.q)}<hr class="divider">${renderMath(card.a)}</div>`;
+  }
+
+  main.innerHTML = `
+    <div class="card" onclick="toggleFlip()">
+      <div class="card-meta">
+        <div class="card-session">${esc(card.session)}${rpill}<br>${esc(card.sl)}</div>
+        <div class="card-id">#${esc(card.id)}</div>
+      </div>
+      ${badgesHtml ? `<div class="badges">${badgesHtml}</div>` : ''}
+      ${refHtml}
+      ${bodyHtml}
+    </div>
+    <div class="nav">
+      <button onclick="go(-1)" ${idx===0?'disabled':''}>← Anterior</button>
+      <button class="btn-flip" onclick="toggleFlip()">⟳ Girar</button>
+      <button onclick="go(1)" ${idx>=deck.length-1?'disabled':''}>Siguiente →</button>
+    </div>
+    ${flipped ? `<div class="rate-row">
+      <button class="btn-again" onclick="rate('again')">✗ Repetir</button>
+      <button class="btn-hard" onclick="rate('hard')">~ Difícil</button>
+      <button class="btn-easy" onclick="rate('easy')">✓ Fácil</button>
+    </div>` : ''}
+  `;
+  renderStats();
+}
+
+function toggleFlip() { flipped = !flipped; renderCard(); }
+
+function go(dir) {
+  const next = idx + dir;
+  if (next >= 0 && next < deck.length) { idx = next; flipped = false; renderCard(); }
+}
+
+function rate(r) {
+  ratings[r]++;
+  const card = deck[idx];
+  cardRatings[card.id] = r;
+  answeredIds.add(card.id);
+  saveProgress();
+
+  // Promote cards whose dependencies are now fully answered to the front of the queue
+  const remaining = deck.slice(idx + 1);
+  const unlocked = remaining.filter(c => c.depends.length > 0 && c.depends.every(d => answeredIds.has(d)));
+  const locked   = remaining.filter(c => !(c.depends.length > 0 && c.depends.every(d => answeredIds.has(d))));
+  deck = [...deck.slice(0, idx + 1), ...unlocked, ...locked];
+
+  const next = idx + 1;
+  if (next >= deck.length) { done = true; renderCard(); return; }
+  idx = next; flipped = false; renderCard();
+}
+
+// ── Wire-up ───────────────────────────────────────────────────────────────────
+
+document.getElementById('clear-btn').addEventListener('click', () => {
+  if (!confirm('¿Limpiar todo el progreso guardado para este deck?')) return;
+  localStorage.removeItem(deckKey);
+  cardRatings = {};
+  ratings = {easy:0, hard:0, again:0};
+  renderCard();
+  setStatus(true, 'Progreso limpiado');
+});
+
+document.getElementById('md-file').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const text = await file.text();
+  loadDeck(text, file.name.replace(/[^a-z0-9]/gi, '_'));
+});
+
+function loadDeck(text, keyName) {
+  const parsed = parseMD(text);
+  if (!parsed.length) {
+    alert('No se encontraron cards. Revisá el formato del archivo.');
+    return;
+  }
+  CARDS = parsed;
+  deckKey = 'anki_ratings_' + keyName;
+  document.getElementById('upload-section').style.display = 'none';
+  document.getElementById('deck-section').style.display = 'block';
+  loadProgress();
+  buildDeck('all');
+}
+
+// Auto-load default deck if served over HTTP
+(async () => {
+  try {
+    const r = await fetch('cards.md');
+    if (!r.ok) return;
+    const text = await r.text();
+    loadDeck(text, 'cards_md');
+  } catch (_) { /* local file:// — upload UI stays */ }
+})();
+</script>
+</body>
+</html>
